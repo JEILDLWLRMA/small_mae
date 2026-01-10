@@ -19,23 +19,11 @@ echo "Step 1: Installing dependencies..."
 echo "-----------------------------------"
 pip install -r requirements.txt
 
-# Step 2: Apply timm compatibility patch
+# Step 2: Prepare dataset
 echo ""
-echo "Step 2: Applying timm compatibility patch..."
+echo "Step 2: Preparing dataset..."
 echo "-----------------------------------"
-if python scripts/fix_timm_compatibility.py; then
-    echo "✓ Compatibility patch applied successfully"
-else
-    echo "✗ Failed to apply patch. Please check the error above."
-    exit 1
-fi
-
-# Step 3: Verify installation
-echo ""
-echo "Step 3: Verifying installation..."
-echo "-----------------------------------"
-python -c "import torch; import timm; print(f'✓ PyTorch {torch.__version__}')"
-python -c "import timm; print(f'✓ timm {timm.__version__}')"
+python scripts/prepare_tiny_imagenet.py
 
 echo ""
 echo "=========================================="
