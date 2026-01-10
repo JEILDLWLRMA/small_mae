@@ -1,0 +1,45 @@
+# MAE Fine-tuning Configuration for Tiny ImageNet Classification (64x64, 200 classes)
+
+# Model parameters
+model: "vit_base_patch4"
+input_size: 64
+nb_classes: 200
+drop_path: 0.1
+global_pool: true
+
+# Training parameters
+batch_size: 128
+accum_iter: 1
+epochs: 100
+warmup_epochs: 5
+
+# Optimizer parameters
+blr: 1e-3  # base learning rate
+layer_decay: 0.75
+weight_decay: 0.05
+min_lr: 1e-6
+
+# Augmentation parameters
+color_jitter: 0.4
+aa: "rand-m9-mstd0.5-inc1"  # AutoAugment policy
+smoothing: 0.1  # Label smoothing
+reprob: 0.25  # Random erase probability
+remode: "pixel"
+recount: 1
+
+# Pre-trained model
+finetune: "/data/lhs1208/mae_res_64/output/pretrain/checkpoint-399.pth"  # Update with actual checkpoint
+
+# Data parameters
+data_path: "/data/lhs1208/mae_res_64/data"
+num_workers: 8
+pin_mem: true
+
+# Output parameters
+output_dir: "/data/lhs1208/mae_res_64/output/finetune"
+log_dir: "/data/lhs1208/mae_res_64/logs/finetune"
+
+# Device
+device: "cuda"
+seed: 42
+

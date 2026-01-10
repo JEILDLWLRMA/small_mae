@@ -1,0 +1,32 @@
+# MAE Pre-training Configuration for Tiny ImageNet (64x64)
+
+# Model parameters
+model: "mae_vit_base_patch4"
+input_size: 64
+mask_ratio: 0.75
+norm_pix_loss: true
+
+# Training parameters
+batch_size: 256
+accum_iter: 1
+epochs: 400
+warmup_epochs: 40
+
+# Optimizer parameters
+blr: 1.5e-4  # base learning rate
+weight_decay: 0.05
+min_lr: 0.0
+
+# Data parameters
+data_path: "/data/lhs1208/mae_res_64/data"
+num_workers: 8
+pin_mem: true
+
+# Output parameters
+output_dir: "/data/lhs1208/mae_res_64/output/pretrain"
+log_dir: "/data/lhs1208/mae_res_64/logs/pretrain"
+
+# Device
+device: "cuda"
+seed: 42
+

@@ -1,0 +1,28 @@
+# Core dependencies
+# Note: timm 0.3.2 has compatibility issues with PyTorch >= 1.9.0
+# After installing, run: python scripts/fix_timm_compatibility.py
+torch>=1.11.0
+torchvision>=0.12.0
+
+# Vision Transformer models (MAE requires specific version)
+# After installation, apply compatibility patch for PyTorch >= 1.9.0:
+# python scripts/fix_timm_compatibility.py
+timm==0.3.2
+
+# Data handling
+datasets>=2.0.0
+Pillow>=8.0.0
+numpy>=1.19.0
+
+# Data processing
+scikit-learn>=0.24.0
+
+# Progress bars
+tqdm>=4.60.0
+
+# Logging and visualization
+tensorboard>=2.5.0
+
+# Optional: for distributed training
+# submitit>=0.4.0  # Uncomment if using submitit scripts
+

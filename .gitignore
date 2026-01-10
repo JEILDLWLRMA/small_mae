@@ -1,0 +1,103 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+conda_env/
+
+# PyTorch
+*.pth
+*.pt
+*.ckpt
+*.pth.tar
+*.pt.tar
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Project specific
+# Data directories
+data/
+data/*
+!data/.gitkeep
+
+# Output directories
+output/
+output/*
+!output/.gitkeep
+
+# Log directories
+logs/
+logs/*
+!logs/.gitkeep
+
+# TensorBoard logs
+events.out.tfevents.*
+*.tfevents.*
+
+# Checkpoints and model weights
+checkpoint-*.pth
+checkpoint-*.pt
+*.pth
+*.pt
+
+# Temporary files
+*.tmp
+*.log
+*.out
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Environment variables
+.env
+.env.local
+
+# Weights & Biases
+wandb/
+
+# MLflow
+mlruns/
+
+# Other
+*.bak
+*.backup
+.cache/
+
