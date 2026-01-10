@@ -149,3 +149,25 @@ CUDA_VISIBLE_DEVICES=0 python main_finetune.py \
 - Pre-training uses only the train split (no labels needed)
 - Fine-tuning uses train/val splits for supervised classification
 
+## Acknowledgments
+
+This repository is based on the [MAE (Masked Autoencoders)](https://github.com/facebookresearch/mae) implementation by Facebook Research, adapted for Tiny ImageNet (64x64 images).
+
+**Original Paper**:  
+[Masked Autoencoders Are Scalable Vision Learners](https://arxiv.org/abs/2111.06377)  
+Kaiming He, Xinlei Chen, Saining Xie, Yanghao Li, Piotr Dollár, Ross Girshick
+
+**Original Repository**:  
+https://github.com/facebookresearch/mae
+
+**Modifications**:
+- Adapted for 64x64 image size (Tiny ImageNet)
+- Fixed compatibility issues with latest PyTorch and timm versions
+- Added training scripts and configurations for Tiny ImageNet
+
+## License
+
+This project follows the **CC-BY-NC 4.0** license from the original MAE repository. See [LICENSE](LICENSE) for details.
+
+**Important**: This license allows non-commercial use only. For commercial use, please refer to the original MAE repository and its licensing terms.
+
