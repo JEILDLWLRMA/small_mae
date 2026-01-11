@@ -15,7 +15,7 @@ The dataset is organized in ImageFolder format:
 │   ├── 0/
 │   ├── 1/
 │   └── ...
-└── test/           # Original valid split (10,000 images) - for leaderboard/testing
+└── test/           # Original valid split (10,000 images) - for final testing
     ├── 0/
     ├── 1/
     └── ...
@@ -27,17 +27,6 @@ The dataset is organized in ImageFolder format:
 ```bash
 pip install -r requirements.txt
 ```
-
-2. **Apply timm compatibility patch** (required for PyTorch >= 1.9.0):
-```bash
-# This fixes the torch._six import error in timm 0.3.2
-python scripts/fix_timm_compatibility.py
-```
-
-**Important**: 
-- The compatibility patch **must** be applied after installing timm
-- If you see "Could not import timm", install dependencies first (`pip install -r requirements.txt`)
-- The patch fixes the `ModuleNotFoundError: No module named 'torch._six'` error automatically
 
 2. **Prepare the dataset**:
 ```bash
@@ -71,10 +60,9 @@ bash scripts/train_pretrain.sh
 bash scripts/train_pretrain.sh 1  # Use GPU 1
 ```
 
-Or run manually (with device selection):
+Or run manually:
 ```bash
 cd /data/lhs1208/mae_res_64/mae
-# Set CUDA_VISIBLE_DEVICES to select GPU
 CUDA_VISIBLE_DEVICES=0 python main_pretrain.py \
     --batch_size 256 \
     --epochs 400 \
@@ -90,6 +78,13 @@ CUDA_VISIBLE_DEVICES=0 python main_pretrain.py \
     --log_dir /data/lhs1208/mae_res_64/logs/pretrain
 ```
 
+**Pre-training Parameters**:
+- Batch size: 256
+- Epochs: 400
+- Learning rate: 1.5e-4 (base)
+- Mask ratio: 0.75
+- Warmup epochs: 40
+
 ### Fine-tuning
 
 Fine-tune for classification (after pre-training):
@@ -101,14 +96,13 @@ bash scripts/train_finetune.sh
 bash scripts/train_finetune.sh 1  # Use GPU 1
 ```
 
-Make sure to update the `PRETRAIN_CHECKPOINT` path in the script first!
+**Important**: Update the `PRETRAIN_CHECKPOINT` path in `scripts/train_finetune.sh` before running!
 
-Or run manually (with device selection):
+Or run manually:
 ```bash
 cd /data/lhs1208/mae_res_64/mae
-# Set CUDA_VISIBLE_DEVICES to select GPU
 CUDA_VISIBLE_DEVICES=0 python main_finetune.py \
-    --batch_size 128 \
+    --batch_size 256 \
     --epochs 100 \
     --model vit_base_patch4 \
     --input_size 64 \
@@ -118,17 +112,55 @@ CUDA_VISIBLE_DEVICES=0 python main_finetune.py \
     --layer_decay 0.75 \
     --weight_decay 0.05 \
     --warmup_epochs 5 \
-    --finetune /data/lhs1208/mae_res_64/output/pretrain/checkpoint-399.pth \
+    --finetune /path/to/pretrain/checkpoint.pth \
     --global_pool \
     --data_path /data/lhs1208/mae_res_64/data \
     --output_dir /data/lhs1208/mae_res_64/output/finetune \
     --log_dir /data/lhs1208/mae_res_64/logs/finetune
 ```
 
-## Configuration Files
+**Fine-tuning Parameters**:
+- Batch size: 256
+- Epochs: 100
+- Learning rate: 1e-3 (base)
+- Layer decay: 0.75
+- Warmup epochs: 5
+- Drop path: 0.1
+- Label smoothing: 0.1
 
-- `configs/pretrain_config.yaml` - Pre-training hyperparameters
-- `configs/finetune_config.yaml` - Fine-tuning hyperparameters
+**Note**: For 64x64 images, augmentation is simplified (RandomResizedCrop + RandomHorizontalFlip). Advanced augmentation parameters (color_jitter, AutoAugment, RandomErase) are not applied for small images.
+
+### Testing
+
+Evaluate fine-tuned model on test set:
+```bash
+# Use default GPU and checkpoint
+bash scripts/test_finetune.sh
+
+# Specify GPU device ID
+bash scripts/test_finetune.sh 1
+
+# Specify custom checkpoint path
+bash scripts/test_finetune.sh 0 /path/to/checkpoint.pth
+```
+
+Or run manually:
+```bash
+cd /data/lhs1208/mae_res_64/mae
+python main_test.py \
+    --resume /path/to/finetune/checkpoint.pth \
+    --data_path /data/lhs1208/mae_res_64/data \
+    --model vit_base_patch4 \
+    --input_size 64 \
+    --nb_classes 200 \
+    --batch_size 256 \
+    --global_pool
+```
+
+**Test Results**:
+- The script evaluates on the `test/` folder (separate from validation)
+- Outputs Accuracy@1, Accuracy@5, and Loss
+- Uses evaluation transforms (no augmentation)
 
 ## Visualization
 
@@ -174,25 +206,82 @@ This script will:
 
 **Note**: Requires `matplotlib` for visualization. Install with `pip install matplotlib` if not already installed.
 
+## Scripts Overview
+
+### Training Scripts
+- `scripts/train_pretrain.sh` - Pre-training script
+- `scripts/train_finetune.sh` - Fine-tuning script
+
+### Evaluation Scripts
+- `scripts/test_finetune.sh` - Test evaluation script (evaluates on test set)
+
+### Utility Scripts
+- `scripts/prepare_tiny_imagenet.py` - Dataset preparation
+- `scripts/visualize_valid.py` - Visualization of MAE reconstructions
+- `scripts/setup.sh` - Environment setup (if needed)
+
+### Main Python Scripts
+- `mae/main_pretrain.py` - Pre-training main script
+- `mae/main_finetune.py` - Fine-tuning main script
+- `mae/main_test.py` - Test evaluation main script
+- `mae/main_linprobe.py` - Linear probing (optional)
+
 ## Output Structure
 
 ```
 /data/lhs1208/mae_res_64/
 ├── output/
 │   ├── pretrain/           # Pre-training checkpoints
-│   │   └── visualize/      # Visualization results (generated by visualize_valid.py)
+│   │   ├── checkpoint-*.pth
+│   │   └── visualize/      # Visualization results
 │   └── finetune/           # Fine-tuning checkpoints
+│       ├── checkpoint-*.pth
+│       └── log.txt         # Training logs (JSON format)
 └── logs/
     ├── pretrain/           # Pre-training tensorboard logs
     └── finetune/           # Fine-tuning tensorboard logs
 ```
 
+## Training Logs
+
+Fine-tuning logs are saved in JSON format at `output/finetune/log.txt`. Each line contains:
+- `train_lr`: Learning rate
+- `train_loss`: Training loss
+- `test_loss`: Validation loss (on val set)
+- `test_acc1`: Top-1 accuracy (on val set)
+- `test_acc5`: Top-5 accuracy (on val set)
+- `epoch`: Epoch number
+- `n_parameters`: Number of model parameters
+
+**Note**: During training, "test" metrics refer to validation set (`val/` folder). For final evaluation on test set, use `scripts/test_finetune.sh`.
+
+## Dataset Split Details
+
+- **train/**: 90,000 images (90% of original training set) - Used for training
+- **val/**: 10,000 images (10% of original training set) - Used for validation during training
+- **test/**: 10,000 images (original validation set) - Used for final evaluation only
+
 ## Notes
 
-- The valid split from the original dataset is saved as `test/` for future leaderboard evaluation
-- Train data is split 90/10 for training and validation during fine-tuning
 - Pre-training uses only the train split (no labels needed)
 - Fine-tuning uses train/val splits for supervised classification
+- Test set is kept separate for final evaluation
+- All images are 64x64 pixels
+- Model uses patch size 4, resulting in 16x16 patches
+- For 64x64 images, augmentation is simplified compared to standard ImageNet training
+
+## Troubleshooting
+
+### GPU Memory Issues
+If you encounter out-of-memory errors:
+- Reduce `BATCH_SIZE` in training scripts
+- Increase `ACCUM_ITER` to accumulate gradients
+- Use gradient checkpointing (if implemented)
+
+### Checkpoint Loading
+- Pre-training checkpoints: Use for fine-tuning initialization
+- Fine-tuning checkpoints: Use for test evaluation or resuming training
+- Make sure checkpoint paths are correct in scripts
 
 ## Acknowledgments
 
@@ -209,11 +298,12 @@ https://github.com/facebookresearch/mae
 - Adapted for 64x64 image size (Tiny ImageNet)
 - Fixed compatibility issues with latest PyTorch and timm versions
 - Added training scripts and configurations for Tiny ImageNet
-- Added visualization script for MAE reconstructions on validation set
+- Added visualization script for MAE reconstructions
+- Added test evaluation script for final model evaluation
+- Implemented separate test dataset loading
 
 ## License
 
 This project follows the **CC-BY-NC 4.0** license from the original MAE repository. See [LICENSE](LICENSE) for details.
 
 **Important**: This license allows non-commercial use only. For commercial use, please refer to the original MAE repository and its licensing terms.
-
