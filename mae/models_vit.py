@@ -21,17 +21,35 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
     """ Vision Transformer with support for global average pooling
     """
     def __init__(self, global_pool=False, **kwargs):
-        super(VisionTransformer, self).__init__(**kwargs)
+        # Convert boolean to string for timm compatibility
+        # timm expects: '', 'avg', 'avgmax', 'max', 'token', 'map'
+        if isinstance(global_pool, bool):
+            global_pool_str = 'avg' if global_pool else ''
+        else:
+            global_pool_str = global_pool
+        
+        super(VisionTransformer, self).__init__(global_pool=global_pool_str, **kwargs)
+        
+        # Store global_pool flag as boolean for our logic
+        self.global_pool = bool(global_pool)
 
-        self.global_pool = global_pool
         if self.global_pool:
-            norm_layer = kwargs['norm_layer']
-            embed_dim = kwargs['embed_dim']
+            # Get embed_dim from the model (already initialized by parent)
+            # Try multiple ways to get embed_dim for compatibility
+            if hasattr(self, 'embed_dim'):
+                embed_dim = self.embed_dim
+            elif hasattr(self, 'patch_embed') and hasattr(self.patch_embed, 'embed_dim'):
+                embed_dim = self.patch_embed.embed_dim
+            else:
+                # Fallback to kwargs or default
+                embed_dim = kwargs.get('embed_dim', 768)
+            # Get norm_layer from kwargs or use default
+            norm_layer = kwargs.get('norm_layer', partial(nn.LayerNorm, eps=1e-6))
             self.fc_norm = norm_layer(embed_dim)
 
             del self.norm  # remove the original norm
 
-    def forward_features(self, x):
+    def forward_features(self, x, **kwargs):
         B = x.shape[0]
         x = self.patch_embed(x)
 
@@ -51,6 +69,17 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
             outcome = x[:, 0]
 
         return outcome
+    
+    def forward_head(self, x, pre_logits: bool = False):
+        if self.global_pool:
+            # fc_norm is already applied in forward_features
+            # Apply head_drop if it exists (may not exist in all timm versions)
+            if hasattr(self, 'head_drop') and self.head_drop is not None:
+                x = self.head_drop(x)
+            return x if pre_logits else self.head(x)
+        else:
+            # Use parent's forward_head for cls_token mode
+            return super().forward_head(x, pre_logits=pre_logits)
 
 
 def vit_base_patch16(**kwargs):

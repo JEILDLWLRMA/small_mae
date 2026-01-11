@@ -6,7 +6,7 @@ DEVICE_ID=${1:-0}
 
 # Set paths
 DATA_DIR="/data/lhs1208/mae_res_64/data"
-PRETRAIN_CHECKPOINT="/data/lhs1208/mae_res_64/output/pretrain/checkpoint-399.pth"  # Update with actual checkpoint path
+PRETRAIN_CHECKPOINT="/data/lhs1208/mae_res_64/output/pretrain/checkpoint-360.pth"  # Update with actual checkpoint path
 OUTPUT_DIR="/data/lhs1208/mae_res_64/output/finetune"
 LOG_DIR="/data/lhs1208/mae_res_64/logs/finetune"
 MAE_DIR="/data/lhs1208/mae_res_64/mae"
@@ -22,7 +22,7 @@ cd ${MAE_DIR}
 export CUDA_VISIBLE_DEVICES=${DEVICE_ID}
 
 # Fine-tuning parameters
-BATCH_SIZE=128
+BATCH_SIZE=256
 ACCUM_ITER=1
 EPOCHS=100
 WARMUP_EPOCHS=5
