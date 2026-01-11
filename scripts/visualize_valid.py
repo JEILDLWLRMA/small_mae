@@ -44,11 +44,21 @@ def find_latest_checkpoint(checkpoint_dir):
 def load_model(checkpoint_path, arch='mae_vit_base_patch4', img_size=64, device='cuda'):
     """Load MAE model from checkpoint."""
     print(f"Loading model: {arch}")
-    model = models_mae.__dict__[arch](img_size=img_size, norm_pix_loss=False)
     
     # Load checkpoint with weights_only=False for PyTorch 2.6+ compatibility
     # (checkpoints may contain argparse.Namespace objects)
     checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
+    
+    # Try to get norm_pix_loss from checkpoint args
+    if 'args' in checkpoint and hasattr(checkpoint['args'], 'norm_pix_loss'):
+        actual_norm_pix_loss = checkpoint['args'].norm_pix_loss
+        print(f"Found norm_pix_loss={actual_norm_pix_loss} in checkpoint")
+    else:
+        # Default: assume True (as per train_pretrain.sh)
+        actual_norm_pix_loss = True
+        print(f"Using default norm_pix_loss={actual_norm_pix_loss} (not found in checkpoint)")
+    
+    model = models_mae.__dict__[arch](img_size=img_size, norm_pix_loss=actual_norm_pix_loss)
     
     # Handle different checkpoint formats
     if 'model' in checkpoint:
@@ -61,7 +71,7 @@ def load_model(checkpoint_path, arch='mae_vit_base_patch4', img_size=64, device=
     
     model.to(device)
     model.eval()
-    return model
+    return model, actual_norm_pix_loss
 
 
 def denormalize_image(img_tensor):
@@ -77,7 +87,7 @@ def denormalize_image(img_tensor):
     return img_denorm
 
 
-def visualize_one_image(img, model, mask_ratio=0.75, device='cuda'):
+def visualize_one_image(img, model, mask_ratio=0.75, device='cuda', norm_pix_loss=False):
     """
     Run MAE on a single image and return visualization components.
     
@@ -86,6 +96,7 @@ def visualize_one_image(img, model, mask_ratio=0.75, device='cuda'):
         model: MAE model
         mask_ratio: masking ratio
         device: device to run on
+        norm_pix_loss: whether model was trained with norm_pix_loss
     
     Returns:
         Dictionary with visualization components
@@ -114,9 +125,25 @@ def visualize_one_image(img, model, mask_ratio=0.75, device='cuda'):
     
     # Run MAE
     with torch.no_grad():
-        loss, y, mask = model(img_tensor, mask_ratio=mask_ratio)
-        y = model.unpatchify(y)
-        y = y.detach().cpu()
+        loss, y_patches, mask = model(img_tensor, mask_ratio=mask_ratio)
+        # y_patches is [N, L, p*p*3] in normalized patch space if norm_pix_loss=True
+    
+    # If model was trained with norm_pix_loss, we need to denormalize the reconstruction
+    # by applying the inverse of patch normalization
+    if norm_pix_loss:
+        # Get target patches for normalization stats
+        target_patches = model.patchify(img_tensor)  # [N, L, p*p*3]
+        
+        # Compute mean and var for each patch (same as in forward_loss)
+        patch_mean = target_patches.mean(dim=-1, keepdim=True)  # [N, L, 1]
+        patch_var = target_patches.var(dim=-1, keepdim=True)  # [N, L, 1]
+        
+        # Denormalize patches: y_denorm = y * sqrt(var) + mean
+        y_patches = y_patches * torch.sqrt(patch_var + 1e-6) + patch_mean
+    
+    # Unpatchify to image space
+    y = model.unpatchify(y_patches)  # [N, 3, H, W]
+    y = y.detach().cpu()
     
     # Process mask for visualization
     mask = mask.detach().cpu()
@@ -126,7 +153,11 @@ def visualize_one_image(img, model, mask_ratio=0.75, device='cuda'):
     
     # Convert to numpy for visualization
     img_original = img_tensor.cpu()
-    img_masked = img_original * (1 - mask)
+    
+    # For masked image, use ImageNet mean instead of 0 for masked regions
+    imagenet_mean_tensor = torch.tensor(imagenet_mean).view(1, 3, 1, 1)
+    img_masked = img_original * (1 - mask) + imagenet_mean_tensor * mask
+    
     img_reconstruction = y
     img_paste = img_original * (1 - mask) + y * mask
     
@@ -233,7 +264,7 @@ def main():
                 device = torch.device('cpu')
     
     print(f"Using device: {device}")
-    model = load_model(checkpoint_path, arch=args.model, img_size=args.input_size, device=device)
+    model, norm_pix_loss = load_model(checkpoint_path, arch=args.model, img_size=args.input_size, device=device)
     
     # Load validation dataset
     print(f"Loading validation dataset from {args.val_dir}")
@@ -266,7 +297,7 @@ def main():
         # Run visualization
         print(f"Processing image {idx+1}/{num_images}: {img_name} (class: {class_name})")
         vis_dict = visualize_one_image(
-            img_tensor, model, mask_ratio=args.mask_ratio, device=device
+            img_tensor, model, mask_ratio=args.mask_ratio, device=device, norm_pix_loss=norm_pix_loss
         )
         
         # Save visualization
