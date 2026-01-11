@@ -28,6 +28,18 @@ def build_dataset(is_train, args):
     return dataset
 
 
+def build_test_dataset(args):
+    """Build test dataset (separate from validation dataset)"""
+    transform = build_transform(is_train=False, args=args)  # Use eval transform
+    
+    root = os.path.join(args.data_path, 'test')
+    dataset = datasets.ImageFolder(root, transform=transform)
+    
+    print(f"Test dataset: {dataset}")
+    
+    return dataset
+
+
 def build_transform(is_train, args):
     mean = IMAGENET_DEFAULT_MEAN
     std = IMAGENET_DEFAULT_STD
